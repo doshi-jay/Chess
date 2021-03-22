@@ -41,19 +41,38 @@ def main():
     screen = p.display.set_mode((WIDTH, HEIGHT))
     clock = p.time.Clock()
     screen.fill(p.Color("white"))
-
     gs = ChessEngine.GameState()
-
-    print(gs.board)
-
     load_images()
-
     game_running = True
 
+    sq_selected = tuple() # (row, col), keeps track of user click
+    player_clicks = list() # 2 tuples in the list, [(row, col), (row, col)]
+
     while game_running:
+
         for e in p.event.get():
             if e.type == p.QUIT:
                 game_running = False
+            elif e.type == p.MOUSEBUTTONDOWN:
+                location = p.mouse.get_pos() # Gets (col, row) location of mouse click
+                row = location[1] // SQ_SIZE
+                col = location[0] // SQ_SIZE
+
+                # If user clicks on the same square again, i.e. as source and destination,
+                # then we deselect it and reset player clicks
+                if sq_selected == (row, col):
+                    sq_selected = tuple()
+                    player_clicks = list()
+                else:
+                    sq_selected = (row, col)
+                    player_clicks.append(sq_selected) # Append both first and second clicks
+
+                # After second click only
+                if len(player_clicks) == 2:
+                    move = ChessEngine.Move(start_sq=player_clicks[0], end_sq=player_clicks[1], board=gs.board)
+                    gs.make_move(move)
+                    player_clicks = list() # Resetting to restart the 2 click move logic
+                    sq_selected = tuple()
 
         draw_game_state(screen, gs)
         clock.tick(MAX_FPS)
