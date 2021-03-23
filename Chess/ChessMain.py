@@ -42,6 +42,13 @@ def main():
     clock = p.time.Clock()
     screen.fill(p.Color("white"))
     gs = ChessEngine.GameState()
+
+    valid_moves = gs.get_valid_moves()
+
+    # Flag to control the number of times get valid moves is called
+    # Only if the user makes a valid move, it is called
+    move_made = False
+
     load_images()
     game_running = True
 
@@ -53,6 +60,12 @@ def main():
         for e in p.event.get():
             if e.type == p.QUIT:
                 game_running = False
+
+            elif e.type == p.KEYDOWN:
+                if e.key == p.K_z: # undo when 'z' is pressed
+                    gs.undo_move()
+                    move_made = True # On undo we need to generate all valid moves again
+
             elif e.type == p.MOUSEBUTTONDOWN:
                 location = p.mouse.get_pos() # Gets (col, row) location of mouse click
                 row = location[1] // SQ_SIZE
@@ -64,15 +77,25 @@ def main():
                     sq_selected = tuple()
                     player_clicks = list()
                 else:
-                    sq_selected = (row, col)
-                    player_clicks.append(sq_selected) # Append both first and second clicks
+                    if not (len(player_clicks) == 0 and gs.board[row][col] == gs.EMPTY_SQ):
+                        sq_selected = (row, col)
+                        player_clicks.append(sq_selected) # Append both first and second clicks
 
                 # After second click only
                 if len(player_clicks) == 2:
                     move = ChessEngine.Move(start_sq=player_clicks[0], end_sq=player_clicks[1], board=gs.board)
-                    gs.make_move(move)
+                    # move.print_move()
+
+                    if move in valid_moves:
+                        gs.make_move(move)
+                        move_made = True
+
                     player_clicks = list() # Resetting to restart the 2 click move logic
                     sq_selected = tuple()
+
+        if move_made:
+            valid_moves = gs.get_valid_moves()
+            move_made = False
 
         draw_game_state(screen, gs)
         clock.tick(MAX_FPS)
