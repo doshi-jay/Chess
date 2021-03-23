@@ -90,8 +90,10 @@ def main():
                         gs.make_move(move)
                         move_made = True
 
-                    player_clicks = list() # Resetting to restart the 2 click move logic
-                    sq_selected = tuple()
+                        player_clicks = list() # Resetting to restart the 2 click move logic
+                        sq_selected = tuple()
+                    else:
+                        player_clicks = [sq_selected]
 
         if move_made:
             valid_moves = gs.get_valid_moves()

@@ -156,6 +156,8 @@ class GameState():
                     move = Move((row, col), (row+1, col+1), self.board)
                     moves.append(move)
 
+            # TODO add pawn promotions
+
         return moves
 
 
@@ -167,10 +169,9 @@ class GameState():
         :param moves:
         :return:
         """
+        # row, col format to specify directions
         possible_directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-
-        moves += self.get_range_moves(possible_directions, row, col)
-        return moves
+        return moves + self.get_range_moves(possible_directions, row, col)
 
     def get_knight_moves(self, row, col, moves):
         """
@@ -199,12 +200,11 @@ class GameState():
         :return:
         """
         possible_directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
-
-        moves += self.get_range_moves(possible_directions, row, col )
-        return moves
+        return moves + self.get_range_moves(possible_directions, row, col)
 
     def get_range_moves(self, possible_directions, row, col):
         moves = []
+        opp_color = "b" if self.white_to_move else "w"
 
         for i, j in possible_directions:
             direction_valid = True
@@ -216,8 +216,8 @@ class GameState():
                 if self.check_move_validity(curr_row, curr_col):
                     move = Move((row, col), (curr_row, curr_col), self.board)
                     moves.append(move)
-                    if (self.board[curr_row][curr_col][0] == "w" and not self.white_to_move) or \
-                            (self.board[curr_row][curr_col][0] == "b" and self.white_to_move):
+
+                    if self.board[curr_row][curr_col][0] == opp_color:
                         direction_valid = False
                 else:
                     direction_valid = False
