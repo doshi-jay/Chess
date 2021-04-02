@@ -85,14 +85,15 @@ def main():
                 if len(player_clicks) == 2:
                     move = ChessEngine.Move(start_sq=player_clicks[0], end_sq=player_clicks[1], board=gs.board)
                     # move.print_move()
+                    for i in range(len(valid_moves)):
 
-                    if move in valid_moves:
-                        gs.make_move(move)
-                        move_made = True
+                        if move == valid_moves[i]:
+                            gs.make_move(valid_moves[i])
+                            move_made = True
 
-                        player_clicks = list() # Resetting to restart the 2 click move logic
-                        sq_selected = tuple()
-                    else:
+                            player_clicks = list() # Resetting to restart the 2 click move logic
+                            sq_selected = tuple()
+                    if not move_made:
                         player_clicks = [sq_selected]
 
         if move_made:

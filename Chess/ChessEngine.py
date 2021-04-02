@@ -2,6 +2,8 @@
 Store chess board state.
 Determine valid moves and keep a move log
 """
+from pprint import pprint
+
 class GameState():
     EMPTY_SQ = "--"
     def __init__(self):
@@ -16,7 +18,7 @@ class GameState():
             ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["--", "--", "--", "--", "--", "--", "--", "--"],
-            ["--", "--", "--", "wR", "--", "--", "--", "--"],
+            ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["wp", "wp", "wp", "wp", "wp", "wp", "wp", "wp"],
             ["wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
         ]
@@ -31,6 +33,13 @@ class GameState():
         self.white_to_move = True
         self.move_log = [] # Stores objects of class 'Move'
 
+        # Keeping track of kings for castling and moves resulting in check
+        self.white_king_location = (7, 4)
+        self.black_king_location = (0, 4)
+
+        self.check_mate = False
+        self.state_mate = False
+
     def make_move(self, move):
         """
         Takes move as param, executes it.
@@ -42,10 +51,25 @@ class GameState():
         if move.piece_moved == self.EMPTY_SQ:
             return
 
+        # print(f"Making move at {move.start_row, move.start_col} to {move.end_row, move.end_col}")
+
         self.board[move.start_row][move.start_col] = self.EMPTY_SQ
         self.board[move.end_row][move.end_col] = move.piece_moved
         self.move_log.append(move)
         self.white_to_move = not self.white_to_move # Switch turns between white and black
+
+        # Updating king location if moves
+        if move.piece_moved == "wK":
+            self.white_king_location = (move.end_row, move.end_col)
+
+        elif move.piece_moved == "bK":
+            self.black_king_location = (move.end_row, move.end_col)
+
+        if move.is_pawn_promotion:
+            # Making a queen with the same color
+            self.board[move.end_row][move.end_col] = move.piece_moved[0] + "Q"
+
+
 
     def undo_move(self):
         # Undo only if valid moves have been made
@@ -55,12 +79,78 @@ class GameState():
             self.board[move_to_undo.end_row][move_to_undo.end_col] = move_to_undo.piece_captured
             self.white_to_move = not self.white_to_move # Switch back turns
 
+            # Undo king location if it was moved
+            if move_to_undo.piece_moved == "wK":
+                self.white_king_location = (move_to_undo.start_row, move_to_undo.start_col)
+
+            elif move_to_undo.piece_moved == "bK":
+                self.black_king_location = (move_to_undo.start_row, move_to_undo.start_col)
+
+            self.check_mate = self.state_mate = False
+
+    def in_check(self):
+        """
+        Determine if current player is in check
+        :return:
+        """
+        if self.white_to_move:
+            return self.square_under_attack(self.white_king_location[0], self.white_king_location[1])
+        else:
+            return self.square_under_attack(self.black_king_location[0], self.black_king_location[1])
+
+    def square_under_attack(self, row, col):
+        """
+        Determine if enemy can attack square with row, col
+        :param row:
+        :param col:
+        :return:
+        """
+        # Switching to opponent, to see all their possible moves
+        self.white_to_move = not self.white_to_move
+
+        opp_moves = self.get_all_possible_moves()
+
+        # Switch turns back to maintain whose move it is
+        self.white_to_move = not self.white_to_move
+
+        for move in opp_moves:
+            if (move.end_row, move.end_col) == (row, col):
+                return True
+        return False
+
     def get_valid_moves(self):
         """
         All valid moves considering checks
         :return:
         """
-        return self.get_all_possible_moves()
+        moves = self.get_all_possible_moves()
+        moves = list(set(moves))
+
+        for i in range(len(moves)-1, -1, -1): # Removing elements from list, thus going backward
+            self.make_move(moves[i])
+
+            # On calling make move above, turns got swtiched.
+            # We must undo that turn change because we are not actually making the move
+            # we are only computing all valid moves.
+            self.white_to_move = not self.white_to_move
+            if self.in_check():
+                moves.remove(moves[i])
+
+            self.white_to_move = not self.white_to_move
+            self.undo_move()
+
+        # print(f"Generating {len(moves)}")
+        # self.show_move_per_piece(moves)
+
+        # Checking for checkmate or statelate
+        if len(moves) == 0:
+            if self.in_check():
+                self.check_mate = True
+            else:
+                self.state_mate = True
+
+
+        return moves
 
     def get_all_possible_moves(self):
         """
@@ -85,6 +175,18 @@ class GameState():
 
         return moves
 
+    def show_move_per_piece(self, moves):
+        moves_per_piece = dict()
+        for move in moves:
+            if move.piece_moved in moves_per_piece:
+                moves_per_piece[move.piece_moved].append(((move.start_row, move.start_col),
+                                                          (move.end_row, move.end_col)))
+            else:
+                moves_per_piece[move.piece_moved] = [((move.start_row, move.start_col), (move.end_row, move.end_col))]
+
+        pprint(moves_per_piece)
+        return
+
     def check_move_validity(self, end_row, end_col):
         """
         Returns: true iff, the end row and end col are within bounds and the end
@@ -96,7 +198,6 @@ class GameState():
         opp_color = "b" if self.white_to_move else "w"
         return end_row < len(self.board) and end_row >= 0 and end_col < len(self.board[0]) and end_col >= 0 \
                and (self.board[end_row][end_col][0] == opp_color or self.board[end_row][end_col] == self.EMPTY_SQ)
-
 
     def get_pawn_moves(self, row, col, moves):
         """
@@ -159,7 +260,6 @@ class GameState():
             # TODO add pawn promotions
 
         return moves
-
 
     def get_rook_moves(self, row, col, moves):
         """
@@ -279,6 +379,12 @@ class Move():
         self.end_col = end_sq[1]
         self.piece_moved = board[self.start_row][self.start_col]
         self.piece_captured = board[self.end_row][self.end_col]
+        self.is_pawn_promotion = False
+
+        # Pawn promotion
+        if (self.piece_moved == "wp" and self.end_row == 0) or (self.piece_moved == "bp" and self.end_row == 7):
+            self.is_pawn_promotion = True
+
         self.move_id = self.start_row * 1000 + self.start_col * 100 + self.end_row * 10 + self.end_col
         # print(self.move_id)
 
@@ -297,6 +403,9 @@ class Move():
         """
         if isinstance(other, Move):
             return self.move_id == other.move_id
+
+    def __hash__(self):
+        return self.move_id
 
     def print_move(self):
         print(str(self.start_row) + str(self.start_col) + " -> " + str(self.end_row)+ str(self.end_col))
